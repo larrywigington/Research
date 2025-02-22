@@ -1,7 +1,7 @@
 import cupy as cp
 import cupyx.scipy.sparse
 import time
-from scs_implementation.src.gpu_kernels import apply_A_kernel, apply_At_kernel
+from gpu_kernels import apply_A_kernel, apply_At_kernel
 
 class SCSSolver:
     def __init__(self, c, A_ub=None, b_ub=None, A_eq=None, b_eq=None, dtype=cp.float32):

@@ -67,17 +67,87 @@ Each chapter of the dissertation will be structured as a **stand-alone, publisha
 📦 phd-research
 ├── 📂 dissertation          # LaTeX files for the dissertation
 │   ├── 📂 chapters         # Individual chapter files
+│   │   ├── 01_introduction.tex
+│   │   ├── 02_literature_review.tex
+│   │   ├── 03_pdhg_solver.tex
+│   │   ├── 04_decentralized_pdhg.tex
+│   │   ├── 05_realworld_tests.tex
+│   │   ├── 06_conclusion.tex
+│   ├── 📂 appendices       # Additional appendices
+│   │   ├── appendix_1.tex
+│   ├── 📂 additional_resources  # Supplemental files
+│   │   ├── classified_chapter.tex
+│   │   ├── classified_meta.bib
+│   │   ├── classified_thesis.tex
+│   │   ├── exec_sum_with_refs.tex
+│   │   ├── supplementals.tex
+│   │   ├── _README.txt
+│   ├── 📂 figures          # Figures, plots, and diagrams
+│   │   ├── dragon.jpg
+│   │   ├── npslogo.pdf
+│   │   ├── bash-long.sh
+│   │   ├── Python-short.py
+│   ├── 📂 tables           # Any tables used in LaTeX
+│   ├── 📂 frontmatter      # Front matter and setup files
+│   │   ├── acronyms.tex
+│   │   ├── front-matter.tex
+│   │   ├── SETUP.txt
 │   ├── main.tex            # Main dissertation file
 │   ├── references.bib      # BibTeX references
-│   ├── figures/            # Figures, plots, and diagrams
-│   ├── tables/             # Any tables used in LaTeX
+│   ├── nps-ieee.bst        # Bibliography style file
+│   ├── nps-informs.bst     # Bibliography style file
+│   ├── npsreport2018.cls   # LaTeX class file
+│   ├── nps_sf298.sty       # Formatting style file
 │
 ├── 📂 papers                # Collection of relevant PDFs
 │
-├── 📂 experiments           # Code for simulations and benchmarks
-│   ├── 📂 gpu_pdhg_solver  # CUDA implementation of PDHG
-│   ├── 📂 swarm_simulation # Multi-agent decentralized PDHG
-│   ├── 📂 realworld_tests  # Logs from drone experiments
+├── 📂 development           # Code development workspace
+│   ├── 📂 notebooks         # Jupyter notebooks for solver testing
+│   │   ├── pdlp_testing.ipynb
+│   │   ├── scs_testing.ipynb
+│   ├── 📂 scs_implementation  # GPU-accelerated SCS solver
+│   │   ├── 📂 benchmarks     # Benchmarking scripts
+│   │   ├── 📂 experiments    # Experimental setups
+│   │   ├── 📂 src           # Solver implementation
+│   │   │   ├── gpu_kernels.py    # Custom CUDA kernels
+│   │   │   ├── scs_solver.py     # Main SCS solver
+│   │   │   ├── utils.py          # Utility functions
+│   │   ├── 📂 tests         # Functional tests
+│   │   │   ├── test_baseline.py  # Baseline solver tests
+│   │   │   ├── test_scs_solver.py  # SCS solver tests
+│   │   ├── README.md
+│   │   ├── requirements.txt
+│   │   ├── setup.py
+│   ├── 📂 pdlp_implementation # GPU-accelerated PDLP solver
+│   │   ├── 📂 benchmarks     # Benchmarking scripts
+│   │   ├── 📂 experiments    # Experimental setups
+│   │   ├── 📂 src           # Solver implementation
+│   │   │   ├── gpu_kernels.py    # Custom CUDA kernels
+│   │   │   ├── pdlp_solver.py    # Main PDLP solver
+│   │   │   ├── utils.py          # Utility functions
+│   │   ├── 📂 tests         # Functional tests
+│   │   │   ├── test_baseline.py  # Baseline solver tests
+│   │   │   ├── test_pdlp_solver.py  # PDLP solver tests
+│   │   ├── README.md
+│   │   ├── requirements.txt
+│   │   ├── setup.py
+│   ├── 📂 test_data         # Transportation problem generator
+│   │   ├── 📂 data          # Generated datasets
+│   │   ├── generate_transportation.py  # Problem generator
+│   │   ├── utils.py              # Utility functions
+│   ├── 📂 profiling        # Performance benchmarking
+│   │   ├── profile_solvers.py  # Main profiling script
+│   │   ├── README.md           # Overview of profiling methods
+│   ├── 📂 utils             # Shared utility functions
+│   │   ├── matrix_operations.py
+│   │   ├── plotting.py
+│   │   ├── profiling.py
+│   │   ├── README.md
+│   ├── create.py            # Script to initialize project structure
+│   ├── environment.yml       # Conda environment configuration
+│   ├── Makefile              # Automation for setup, testing, and benchmarking
+│   ├── README.md             # Project overview
+│   ├── requirements.txt       # Python dependencies
 │
 ├── 📂 tools                 # Utility scripts
 │   ├── compile.sh          # Compile LaTeX + BibTeX
@@ -89,6 +159,7 @@ Each chapter of the dissertation will be structured as a **stand-alone, publisha
 ├── README.md                # Project overview
 └── LICENSE                  # Open-source license (if applicable)
 ```
+
 
 ---
 ## Target Conferences and Journals

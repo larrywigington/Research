@@ -2,10 +2,10 @@ import numpy as np
 import scipy.sparse
 import scipy.io
 import os
-from development.test_data.utils import save_matrix
+from utils import save_matrix
 
 
-def generate_transportation_problem(m, n, write=False, data_dir="development/test_data/data"):
+def generate_transportation_problem(m, n, write=False, data_dir="data"):
     """Generate a feasible transportation problem with random data.
 
     Args:

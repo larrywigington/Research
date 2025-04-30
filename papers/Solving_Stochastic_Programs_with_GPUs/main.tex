@@ -1,0 +1,26 @@
+\documentclass[11pt]{article}
+\usepackage{amsmath, amssymb, graphicx, geometry, natbib}
+\geometry{margin=1in}
+\title{Solving Stochastic Programs with GPUs: A Comparative Review of First-Order GPU-Native Methods}
+\author{Larry Wigington}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This paper presents a comparative study of GPU-native implementations for solving large-scale stochastic linear programs using first-order optimization methods. We evaluate Splitting Conic Solver (SCS), Primal-Dual Hybrid Gradient (PDHG), and ADMM-based approaches implemented via CuPy, Numba, and CUDA. Our findings establish a foundation for GPU-accelerated stochastic optimization and motivate further exploration into resolvent-splitting algorithms.
+\end{abstract}
+
+\input{sections/introduction}
+\input{sections/background}
+\input{sections/methods}
+\input{sections/experiments}
+\input{sections/results}
+\input{sections/discussion}
+\input{sections/conclusion}
+\bibliographystyle{plainnat}
+\bibliography{bibliography/references}
+\appendix
+\input{appendix/appendix_a}
+\end{document}

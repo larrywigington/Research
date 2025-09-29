@@ -1,0 +1,223 @@
+\documentclass[12pt]{article}
+\usepackage{geometry}
+\usepackage{enumitem}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\geometry{margin=1in}
+\setlist{nosep}
+
+\title{Research Roadmap: GPU-Native First-Order Methods for Conic Optimization}
+\author{Larry (PhD Student)}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section*{Overview}
+This project develops \textbf{GPU-native first-order methods} for conic optimization (LP/QP/SOCP/exp/SDP subsets), with two complementary algorithmic pathways:
+\begin{itemize}
+  \item \textbf{HSDE + ADMM (SCS-style):} general conic solver with cone projections and infeasibility certificates.
+  \item \textbf{PDLP (PDHG-style):} large-scale LP/QP methods centered on matrix--vector operations, diagonal preconditioning, and restarts.
+\end{itemize}
+The plan integrates \emph{theoretical analysis}, \emph{GPU-first systems design}, and \emph{publishable benchmarking results}. A key thrust is to \emph{characterize the structures and problem sizes where GPUs decisively outperform CPUs} and to propose \emph{novel GPU-adapted first-order algorithms}.
+
+%==================================================
+\section*{Week-One Intensive Plan (Tactical, Day-by-Day)}
+\subsection*{Goals by Day 7}
+\begin{itemize}
+  \item CPU HSDE+ADMM reference for LP and SOC cones; SCS-style residuals and certificates.
+  \item GPU-native HSDE+ADMM loop: CSR SpMV, fused vector ops, device-side cone projections, device-side stopping checks.
+  \item PDLP (PDHG) CPU scaffold: diagonal preconditioning, adaptive restarts.
+  \item Benchmark harness with plots and a short technical note (\emph{notes/technote\_week1.pdf}).
+\end{itemize}
+
+\subsection*{Daily Schedule}
+\begin{description}
+  \item[Day 1:] CPU HSDE baseline (cone projections, residuals, simple equilibration). Unit tests on toy LP/SOCP.
+  \item[Day 2:] GPU bring-up: device vector ops; nonnegativity \& SOC projection kernels; cuSPARSE SpMV; device residual reductions.
+  \item[Day 3:] Device-side PCG or fixed-point inner step; full HSDE+ADMM loop; device stopping criteria; GPU equilibration.
+  \item[Day 4:] Stabilization (damping/over-relax); Nsight profiling and kernel fusion; start PDLP CPU scaffold.
+  \item[Day 5:] Benchmark harness; runs on one Netlib LP and one medium SOCP; time-to-$\varepsilon$ and iteration plots.
+  \item[Day 6:] Harden tests; mixed precision (FP32 main, FP64 reductions); reproducibility doc.
+  \item[Day 7:] Draft tech note; finalize plots; PDLP feasibility handling.
+\end{description}
+
+%==================================================
+\section*{Detailed Research Plan (Milestone-Oriented, No Calendar Labels)}
+
+\subsection*{Milestone A: Theoretical Mastery and Problem Modeling}
+\begin{itemize}
+  \item Conic duality, KKT, normal cones; homogeneous self-dual embedding (HSDE) for robust certification.
+  \item Operator-splitting foundations: ADMM/Douglas--Rachford as fixed-point iterations for monotone inclusions.
+  \item PDHG/PDLP theory: step-size rules, diagonal preconditioning, restarts, and convergence guarantees.
+  \item Acceleration: Anderson acceleration, Nesterov-style extrapolation, restart schemes; stability tradeoffs.
+  \item Interior-point baselines (for context and tolerance benchmarks).
+\end{itemize}
+
+\subsection*{Milestone B: Baseline Implementations (CPU)}
+\begin{itemize}
+  \item \textbf{HSDE+ADMM CPU}: LP, SOC, (basic) exponential cone; SCS-style residuals/gaps; infeasibility detection.
+  \item \textbf{PDLP CPU}: PDHG with diagonal preconditioning and adaptive restarts; correct termination to interior-point-like criteria.
+  \item Cross-validate vs.\ established solvers; build correctness and regression tests.
+\end{itemize}
+
+\subsection*{Milestone C: GPU-Native Systems Design}
+\begin{itemize}
+  \item Data layout for sparse ops (CSR/ELL/blocked CSR); pinned transfers; on-device residency.
+  \item Kernels: SpMV, fused axpy/affine updates, reductions; batched cone projections (nonnegativity, SOC; later exp/SDP).
+  \item Device-side PCG / fixed-point inner solves; device-side stopping rules; on-device restarts/step-size adaptation.
+  \item Mixed precision: FP32 main loop with FP64 accumulators; optional iterative refinement.
+\end{itemize}
+
+\subsection*{Milestone D: Algorithmic Extensions and Novelty}
+\begin{itemize}
+  \item \textbf{GPU-adapted preconditioning} beyond diagonal scaling (structured Jacobi, block-diagonal, graph-based).
+  \item \textbf{Cone-specialized kernels}: exponential-cone projection; batched eigen-projections for block SDP.
+  \item \textbf{Acceleration on GPUs}: Anderson for ADMM/PDHG with safeguards; restart heuristics fully on-device.
+  \item \textbf{Hybrid strategies}: first-order outer loop + occasional semismooth-Newton/Anderson inner refinement.
+\end{itemize}
+
+\subsection*{Milestone E: Benchmarking and Comparative Analysis}
+\begin{itemize}
+  \item Suites: Netlib/Mittelmann LPs; Maros--Mészáros QPs; curated SOCP; (optional) SDPLIB-like blocks.
+  \item Metrics: time-to-tolerance, iterations, device occupancy, achieved bandwidth, host--device traffic, energy (optional).
+  \item Baselines: strong CPU solvers and available GPU baselines (for LP/QP/Conic); explicit hardware \& software configs.
+  \item Deliverables: reproducible scripts, CSV logs, plots, and ablations (scaling, restarts, mixed precision, kernel fusion).
+\end{itemize}
+
+%==================================================
+\section*{Theoretical Program on GPU Suitability and Win Regions}
+
+\subsection*{Per-Iteration Work Model}
+Let $A \in \mathbb{R}^{m \times n}$ with $\mathrm{nnz}(A)$ nonzeros. For first-order conic methods (ADMM/PDHG), the dominant cost per iteration is:
+\[
+T_{\text{iter}} \approx T_{\text{SpMV}} + T_{\text{vec}} + T_{\text{proj}},
+\]
+where $T_{\text{SpMV}}$ is sparse matrix--vector time, $T_{\text{vec}}$ covers vector ops (axpy, dot, norms), and $T_{\text{proj}}$ covers cone projections (sum over cones). For LP/SOCP, $T_{\text{proj}}$ is linear in the number of cone elements; for SDP, it includes eigen-decompositions.
+
+\subsection*{Roofline and Arithmetic Intensity}
+\begin{itemize}
+  \item SpMV has \emph{low arithmetic intensity} ($\approx 2$ flops per nonzero) and is typically \emph{bandwidth-bound}. 
+  \item Approximate per-nonzero bytes (FP32): value (4) + column index (4) + vector read (4) + output write amortized (4) $\Rightarrow$ $\sim$16--24 B/nnz depending on caching/fusion. 
+  \item Achievable throughput is governed by sustained memory bandwidth; vector operations and simple cone projections are also bandwidth-bound.
+\end{itemize}
+
+\subsection*{Crossover Model (CPU vs.\ GPU)}
+Model each platform by an affine time:
+\[
+T^{(\cdot)}(N) \approx \alpha^{(\cdot)} + \beta^{(\cdot)} \,\mathrm{nnz}(A) + \gamma^{(\cdot)} N_{\text{cone}},
+\]
+where:
+\begin{itemize}
+  \item $\alpha$ captures fixed overheads (kernel launches, synchronization, driver/runtime setup; typically higher on GPUs).
+  \item $\beta$ scales with bytes per nonzero divided by sustained bandwidth (lower on GPUs if bandwidth is higher).
+  \item $\gamma N_{\text{cone}}$ captures per-element cone projection costs (also bandwidth-bound for LP/SOC/box).
+\end{itemize}
+\textbf{Crossover condition (ignoring small $\gamma$ differences):}
+\[
+T^{\text{GPU}} < T^{\text{CPU}} 
+\iff 
+\mathrm{nnz}(A) > \frac{\alpha^{\text{GPU}} - \alpha^{\text{CPU}}}{\beta^{\text{CPU}} - \beta^{\text{GPU}}}.
+\]
+\textbf{Implications:}
+\begin{enumerate}
+  \item Large $\alpha^{\text{GPU}}$ (launch/latency) penalizes small problems. Batching $k$ problems or fusing kernels reduces effective $\alpha^{\text{GPU}}/k$.
+  \item The larger the bandwidth gap, the smaller the required $\mathrm{nnz}$ for GPU win.
+  \item Cone projections with branch-free kernels (LP/box, SOC) retain bandwidth-bound behavior and therefore favor GPUs at scale.
+\end{enumerate}
+
+\subsection*{Structures Where GPUs Win (and Why)}
+\begin{description}
+  \item[Large, sparse, moderately well-scaled LP/SOCP:] SpMV-dominated; diagonal scaling equalizes row/col norms, reducing iteration counts; kernels are regular and parallel.
+  \item[Block-diagonal or nearly separable structure:] Enables \emph{batched} SpMV and cone projections, amortizing $\alpha^{\text{GPU}}$ and saturating SMs; ideal for multi-scenario MPC, multicommodity flows, or decomposed networks.
+  \item[Uniform sparsity patterns (bounded degree variance):] Improves coalescing and reduces divergence; ELL/blocked CSR become viable.
+  \item[High aspect ratio with tall-skinny or wide-short but large $\mathrm{nnz}$:] Still SpMV-bound; GPU wins if memory bandwidth is leveraged; PDLP is especially effective on huge LPs.
+\end{description}
+
+\subsection*{Structures Where CPUs May Prevail}
+\begin{description}
+  \item[Small to medium problems:] $\alpha^{\text{GPU}}$ overhead dominates; CPU caches excel.
+  \item[Highly irregular sparsity (power-law degrees) without reordering:] Warp divergence and uncoalesced accesses hurt GPUs unless preprocessing (reordering, binning) is applied.
+  \item[Heavy SDP (large dense blocks):] Eigen-decompositions are compute-bound but may be memory-latency-limited if blocks are small/irregular. GPUs help if many small SDPs can be \emph{batched}; otherwise CPU with vendor LAPACK may compete.
+\end{description}
+
+\subsection*{Estimating Win Regions \emph{a priori}}
+\begin{enumerate}[label=(\alph*)]
+  \item \textbf{Bandwidth proxy:} Set $\beta \approx \text{B}/\text{BW}$, where $\text{B}$ is bytes moved per nonzero. 
+  \item \textbf{Overhead proxy:} Measure $\alpha$ by timing a few empty/fused kernels; use batched microbenchmarks to estimate effective $\alpha/k$.
+  \item \textbf{Iteration model:} Estimate iteration counts $K$ from conditioning proxies (e.g., diagonal dominance, spectral norm, equilibration), then compare $K \cdot T_{\text{iter}}$ across CPU/GPU.
+  \item \textbf{Decision rule:} Prefer GPU if $K_{\text{GPU}} \,\beta^{\text{GPU}} \mathrm{nnz} + \alpha^{\text{GPU}} < K_{\text{CPU}} \,\beta^{\text{CPU}} \mathrm{nnz} + \alpha^{\text{CPU}}$. 
+\end{enumerate}
+
+\subsection*{Cone-Specific Cost Models}
+\begin{itemize}
+  \item \textbf{LP/box:} Projections are elementwise $\Rightarrow$ linear, bandwidth-bound, trivial to fuse.
+  \item \textbf{SOC:} For $(t,v)$, projection is closed-form with two branches; implement branch-minimized kernels over cone offsets; cost $\propto$ cone size.
+  \item \textbf{Exponential cone:} Requires small Newton solves per element; GPU-friendly if \emph{many} elements; consider batched iterations with shared termination guards.
+  \item \textbf{SDP (block-diagonal):} Cost dominated by eigen-projections; GPUs win if \emph{many} small-to-medium blocks allow batched eigens (cuSOLVER batched); single large dense blocks may require mixed strategies.
+\end{itemize}
+
+%==================================================
+\section*{Methodology to Empirically Map Win Regions}
+\subsection*{Synthetic and Real Families}
+\begin{itemize}
+  \item Synthetic grid/mesh, random sparse with controlled degree distributions, block-diagonal with tunable block sizes, network-flow LPs, SOCP from control/MPC.
+  \item Real suites (for validation only): Netlib/Mittelmann LPs, Maros--Mészáros QPs, curated SOCPs, optional SDPLIB-style blocks.
+\end{itemize}
+
+\subsection*{Experimental Factors}
+\begin{itemize}
+  \item \textbf{Size:} $(m,n,\mathrm{nnz})$ sweep on logarithmic grid.
+  \item \textbf{Structure:} degree variance, block size distribution, bandwidth (after reordering), cone composition (LP:\,SOC:\,EXP:\,SDP).
+  \item \textbf{Scaling:} none vs.\ Ruiz/LS-style diagonal equilibration.
+  \item \textbf{Precision:} FP32 vs.\ mixed FP32/FP64.
+  \item \textbf{Acceleration:} restarts on/off; Anderson depth; damping.
+\end{itemize}
+
+\subsection*{Metrics and Analysis}
+\begin{itemize}
+  \item Time-to-tolerance ($10^{-3}$ primary; sensitivity at $10^{-4}$), iterations, achieved bandwidth (GB/s), occupancy, H2D/D2H bytes.
+  \item Heatmaps of speedup vs.\ $(\mathrm{nnz}, \text{degree variance})$ and vs.\ cone composition.
+  \item \textbf{Win-region charts:} delineate $(\mathrm{nnz}, \text{structure})$ where GPU $>$ CPU by factor $\ge 2\times$.
+\end{itemize}
+
+%==================================================
+\section*{Planned Novel Contributions}
+\begin{enumerate}
+  \item \textbf{GPU-adapted preconditioning} for PDHG/ADMM: block-Jacobi / graph-sparsity-informed scaling computed fully on device.
+  \item \textbf{Cone-specialized kernels} (exp cone; batched SDP eigen-projections) with convergence-safe approximations and mixed precision.
+  \item \textbf{Anderson-accelerated HSDE/PDHG} with device-side safeguards; analysis of stability under finite precision and massive parallelism.
+  \item \textbf{Predictive performance model} linking $(\mathrm{nnz}, \text{structure}, \text{cones})$ to time-to-tolerance on specific GPU architectures.
+\end{enumerate}
+
+%==================================================
+\section*{Artifacts and Reproducibility}
+\begin{itemize}
+  \item Open-source repo with CPU/GPU solvers, scripts, instance generators, and CI-tested unit/prop tests.
+  \item Containerized environment; exact hardware/software specs; seeds; Nsight reports.
+  \item Public benchmark tables and plots; \texttt{.csv} logs and Jupyter notebooks for figure reproduction.
+\end{itemize}
+
+%==================================================
+\section*{Proposed Paper / Dissertation Structure}
+\begin{enumerate}
+  \item \textbf{Introduction \& Motivation:} Why GPU-native first-order methods for conic optimization.
+  \item \textbf{Background:} Conic forms, HSDE, ADMM/PDHG, and GPU architectures; prior art and limitations.
+  \item \textbf{Performance Theory:} Roofline-style model, iteration complexity, crossover analysis; conditions for GPU advantage.
+  \item \textbf{Algorithms:} GPU-native HSDE+ADMM and PDLP designs; kernels, data layouts, mixed precision, restarts; preconditioning.
+  \item \textbf{Novel Methods:} GPU-adapted preconditioners; cone-specialized kernels; Anderson-accelerated schemes with safeguards.
+  \item \textbf{Experimental Evaluation:} Suites, metrics, ablations; win-region maps; comparative analysis vs.\ strong CPU/GPU baselines.
+  \item \textbf{Discussion:} Practical guidance: when to use which method; limitations; future directions (e.g., multi-GPU, distributed).
+  \item \textbf{Conclusion.}
+  \item \textbf{Appendices:} Proof details; implementation notes; additional plots/tables.
+\end{enumerate}
+
+%==================================================
+\section*{Immediate Next Actions (Concrete)}
+\begin{itemize}
+  \item Finish week-one deliverables (GPU HSDE+ADMM MVP and PDLP CPU scaffold).
+  \item Implement logging of $\alpha,\beta$ proxies (per-iteration bytes, achieved GB/s) to calibrate the crossover model.
+  \item Stand up the benchmark harness with \emph{synthetic structure sweeps} to begin mapping GPU win regions.
+\end{itemize}
+
+\end{document}
